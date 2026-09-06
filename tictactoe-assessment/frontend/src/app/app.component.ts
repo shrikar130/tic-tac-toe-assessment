@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameApiService } from './services/game-api.service';
 import { GameMode, GameState } from './models/game';
@@ -11,91 +11,137 @@ import { GameMode, GameState } from './models/game';
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
+
   private readonly api = inject(GameApiService);
-  private readonly cdr = inject(ChangeDetectorRef);
-  game?: GameState;
+
+  game = signal<GameState | undefined>(undefined);
+
   selectedMode: GameMode = 'TwoPlayer';
   error = '';
   busy = false;
 
-ngOnInit(): void {
-  console.log('APP INITIALIZED');
-  this.newGame();
-}
+  ngOnInit(): void {
+    this.newGame();
+  }
 
-newGame(mode: GameMode = this.selectedMode): void {
-  console.log('NEW GAME CALLED', mode);
-
-  this.selectedMode = mode;
-
-  this.api.createGame(mode).subscribe({
-    next: game => {
-      console.log('GAME RECEIVED', game);
-      this.game = game;
-      this.busy = false;
-    },
-    error: err => {
-      console.error('GAME API ERROR', err);
-      this.error = err?.error?.message ?? 'Request failed.';
-      this.busy = false;
-    }
-  });
-}
+  newGame(mode: GameMode = this.selectedMode): void {
+    this.selectedMode = mode;
+    this.run(() => this.api.createGame(mode));
+  }
 
   play(row: number, column: number): void {
-    if (!this.game || this.busy || this.game.status !== 'InProgress' || this.game.board[row][column]) return;
-    if (this.game.mode === 'Computer' && this.game.currentPlayer === 'O') return;
-    this.run(() => this.api.move(this.game!.id, this.game!.currentPlayer, row, column));
+    const g = this.game();
+
+    if (
+      !g ||
+      this.busy ||
+      g.status !== 'InProgress' ||
+      g.board[row][column]
+    ) {
+      return;
+    }
+
+    if (g.mode === 'Computer' && g.currentPlayer === 'O') {
+      return;
+    }
+
+    this.run(() =>
+      this.api.move(
+        g.id,
+        g.currentPlayer,
+        row,
+        column
+      )
+    );
   }
 
   undo(): void {
-    if (this.game) this.run(() => this.api.undo(this.game!.id));
+    const g = this.game();
+
+    if (g) {
+      this.run(() => this.api.undo(g.id));
+    }
   }
 
   resetGame(): void {
-    if (this.game) this.run(() => this.api.resetGame(this.game!.id));
+    const g = this.game();
+
+    if (g) {
+      this.run(() => this.api.resetGame(g.id));
+    }
   }
 
   resetScoreboard(): void {
     this.error = '';
+
     this.api.resetScoreboard().subscribe({
       next: score => {
-        if (this.game) {
-          this.game = { ...this.game, scoreboard: score };
-          this.cdr.detectChanges();
+        const g = this.game();
+
+        if (g) {
+          this.game.set({
+            ...g,
+            scoreboard: score
+          });
         }
       },
-      
-      error: err => this.error = err?.error?.message ?? 'Could not reset scoreboard.'
+
+      error: err => {
+        this.error =
+          err?.error?.message ??
+          'Could not reset scoreboard.';
+      }
     });
   }
 
   isWinning(row: number, column: number): boolean {
-    return this.game?.winningCells.some(c => c[0] === row && c[1] === column) ?? false;
+    return (
+      this.game()?.winningCells.some(
+        c => c[0] === row && c[1] === column
+      ) ?? false
+    );
   }
 
   statusText(): string {
-    if (!this.game) return 'Loading…';
-    if (this.game.status === 'Won') return `${this.game.winner} wins!`;
-    if (this.game.status === 'Draw') return 'Draw game';
-    return `${this.game.currentPlayer}'s turn`;
+    const g = this.game();
+
+    if (!g) return 'Loading…';
+
+    if (g.status === 'Won') {
+      return `${g.winner} wins!`;
+    }
+
+    if (g.status === 'Draw') {
+      return 'Draw game';
+    }
+
+    return `${g.currentPlayer}'s turn`;
   }
 
-private run(action: () => import('rxjs').Observable<GameState>): void {
-  this.busy = true;
-  this.error = '';
+  private run(
+    action: () => import('rxjs').Observable<GameState>
+  ): void {
 
-  action().subscribe({
-    next: game => {
-      this.game = game;
-      this.busy = false;
-      this.cdr.detectChanges();
-    },
-    error: err => {
-      this.error = err?.error?.message ?? 'Request failed.';
-      this.busy = false;
-      this.cdr.detectChanges();
-    }
-  });
-}
+    this.busy = true;
+    this.error = '';
+
+    action().subscribe({
+      next: game => {
+        console.log('GAME RECEIVED', game);
+
+        this.game.set(game);
+        this.busy = false;
+      },
+
+      error: err => {
+        console.error('GAME API ERROR', err);
+
+        this.error =
+          err?.error?.message ??
+          'Request failed.';
+
+        this.busy = false;
+      }
+    });
+  }
 }
