@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameApiService } from './services/game-api.service';
 import { GameMode, GameState } from './models/game';
@@ -12,6 +12,7 @@ import { GameMode, GameState } from './models/game';
 })
 export class AppComponent implements OnInit {
   private readonly api = inject(GameApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
   game?: GameState;
   selectedMode: GameMode = 'TwoPlayer';
   error = '';
@@ -58,7 +59,13 @@ newGame(mode: GameMode = this.selectedMode): void {
   resetScoreboard(): void {
     this.error = '';
     this.api.resetScoreboard().subscribe({
-      next: score => { if (this.game) this.game = { ...this.game, scoreboard: score }; },
+      next: score => {
+        if (this.game) {
+          this.game = { ...this.game, scoreboard: score };
+          this.cdr.detectChanges();
+        }
+      },
+      
       error: err => this.error = err?.error?.message ?? 'Could not reset scoreboard.'
     });
   }
@@ -74,11 +81,21 @@ newGame(mode: GameMode = this.selectedMode): void {
     return `${this.game.currentPlayer}'s turn`;
   }
 
-  private run(action: () => import('rxjs').Observable<GameState>): void {
-    this.busy = true; this.error = '';
-    action().subscribe({
-      next: game => { this.game = game; this.busy = false; },
-      error: err => { this.error = err?.error?.message ?? 'Request failed.'; this.busy = false; }
-    });
-  }
+private run(action: () => import('rxjs').Observable<GameState>): void {
+  this.busy = true;
+  this.error = '';
+
+  action().subscribe({
+    next: game => {
+      this.game = game;
+      this.busy = false;
+      this.cdr.detectChanges();
+    },
+    error: err => {
+      this.error = err?.error?.message ?? 'Request failed.';
+      this.busy = false;
+      this.cdr.detectChanges();
+    }
+  });
+}
 }
