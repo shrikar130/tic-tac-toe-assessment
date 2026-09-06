@@ -1,0 +1,62 @@
+<div *ngIf="error" style="padding:20px;color:red;font-size:18px;">
+  Error: {{ error }}
+</div>
+
+<div *ngIf="!game && !error" style="padding:20px;font-size:18px;">
+  Loading Tic Tac Toe...
+</div>
+<main class="shell" *ngIf="game as g">
+  <header>
+    <div><p class="eyebrow">FULL-STACK ASSESSMENT</p><h1>Tic Tac Toe</h1></div>
+    <div class="mode-switch" aria-label="Game mode">
+      <button [class.active]="selectedMode === 'TwoPlayer'" (click)="newGame('TwoPlayer')">Two players</button>
+      <button [class.active]="selectedMode === 'Computer'" (click)="newGame('Computer')">Vs computer</button>
+    </div>
+  </header>
+
+  <section class="dashboard">
+    <div class="game-card card">
+      <div class="status-row">
+        <div><span class="label">STATUS</span><strong>{{ statusText() }}</strong></div>
+        <span class="mode-pill">{{ g.mode === 'Computer' ? 'Human X · Computer O' : 'Player X · Player O' }}</span>
+      </div>
+
+      <div class="board" role="grid" aria-label="Tic Tac Toe board">
+        <ng-container *ngFor="let row of g.board; let r = index">
+          <button *ngFor="let cell of row; let c = index"
+                  class="cell" [class.x]="cell === 'X'" [class.o]="cell === 'O'"
+                  [class.winning]="isWinning(r,c)"
+                  [disabled]="!!cell || g.status !== 'InProgress' || busy"
+                  (click)="play(r,c)" [attr.aria-label]="'Row ' + (r+1) + ', Column ' + (c+1)">
+            {{ cell }}
+          </button>
+        </ng-container>
+      </div>
+
+      <p class="error" *ngIf="error">{{ error }}</p>
+      <div class="actions">
+        <button class="secondary" (click)="undo()" [disabled]="g.moveHistory.length === 0 || g.status !== 'InProgress' || busy">Undo last move</button>
+        <button class="primary" (click)="resetGame()" [disabled]="busy">Reset game</button>
+      </div>
+    </div>
+
+    <aside>
+      <section class="card scoreboard">
+        <div class="section-title"><h2>Scoreboard</h2><button class="link" (click)="resetScoreboard()">Reset</button></div>
+        <div class="scores"><div><span>X</span><strong>{{g.scoreboard.xWins}}</strong></div><div><span>O</span><strong>{{g.scoreboard.oWins}}</strong></div><div><span>Draws</span><strong>{{g.scoreboard.draws}}</strong></div></div>
+      </section>
+
+      <section class="card history">
+        <div class="section-title"><h2>Move history</h2><span>{{g.moveHistory.length}} / 9</span></div>
+        <div class="empty" *ngIf="g.moveHistory.length === 0">No moves yet.</div>
+        <ol>
+          <li *ngFor="let move of g.moveHistory">
+            <span class="move-no">{{move.moveNumber}}</span>
+            <strong>{{move.player}}</strong>
+            <span>Row {{move.row + 1}}, Column {{move.column + 1}}</span>
+          </li>
+        </ol>
+      </section>
+    </aside>
+  </section>
+</main>
