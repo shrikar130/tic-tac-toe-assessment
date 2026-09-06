@@ -2,10 +2,10 @@
   Error: {{ error }}
 </div>
 
-<div *ngIf="!game && !error" style="padding:20px;font-size:18px;">
+<div *ngIf="!game() && !error" style="padding:20px;font-size:18px;">
   Loading Tic Tac Toe...
 </div>
-<main class="shell" *ngIf="game as g">
+<main class="shell" *ngIf="game() as g">
   <header>
     <div><p class="eyebrow">FULL-STACK ASSESSMENT</p><h1>Tic Tac Toe</h1></div>
     <div class="mode-switch" aria-label="Game mode">
