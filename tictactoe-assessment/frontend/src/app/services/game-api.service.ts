@@ -6,7 +6,7 @@ import { GameMode, GameState, Scoreboard } from '../models/game';
 @Injectable({ providedIn: 'root' })
 export class GameApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://127.0.0.1:5000/api';
+  private readonly baseUrl = 'https://tic-tac-toe-assessment.onrender.com/api';
 
   createGame(mode: GameMode): Observable<GameState> {
     return this.http.post<GameState>(`${this.baseUrl}/games`, { mode });
